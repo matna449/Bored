@@ -1,123 +1,86 @@
 import React from 'react';
 import styled from 'styled-components';
-import { AnalyzedQuote } from '../types';
-import { addToFavorites, removeFromFavorites, getFavorites } from '../utils/storageUtils';
+
+interface AnalyzedQuote {
+  quote: {
+    _id: string;
+    content: string;
+    author: string;
+  };
+  analysis: {
+    score: number;
+    comparative: number;
+    positive: string[];
+    negative: string[];
+  };
+}
 
 interface QuoteControlsProps {
-  onRefresh: () => Promise<void>;
+  onRefresh: () => void;
   analyzedQuote: AnalyzedQuote | null;
 }
 
 const ControlsContainer = styled.div`
   display: flex;
   gap: 1rem;
-  margin-top: 1rem;
-  justify-content: center;
+  margin-bottom: 2rem;
 `;
 
 const Button = styled.button`
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  padding: 0.5rem 1.5rem;
   border: none;
-  background-color: #4a90e2;
+  border-radius: 4px;
+  background-color: #3498db;
   color: white;
-  font-weight: bold;
+  font-size: 1rem;
   cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  
+  transition: background-color 0.2s;
+
   &:hover {
-    background-color: #3a80d2;
-    transform: translateY(-2px);
+    background-color: #2980b9;
   }
-  
-  &:active {
-    transform: translateY(0);
-  }
-  
+
   &:disabled {
-    background-color: #cccccc;
+    background-color: #bdc3c7;
     cursor: not-allowed;
-    transform: none;
   }
 `;
 
-const FavoriteButton = styled(Button)<{ isFavorite: boolean }>`
-  background-color: ${props => props.isFavorite ? '#e25c5c' : '#4a90e2'};
-  
-  &:hover {
-    background-color: ${props => props.isFavorite ? '#d24c4c' : '#3a80d2'};
-  }
-`;
+const FavoriteButton = styled(Button)`
+  background-color: ${props => props.disabled ? '#bdc3c7' : '#e74c3c'};
 
-const ShareButton = styled(Button)`
-  background-color: #42b983;
-  
   &:hover {
-    background-color: #32a973;
+    background-color: ${props => props.disabled ? '#bdc3c7' : '#c0392b'};
   }
 `;
 
 const QuoteControls: React.FC<QuoteControlsProps> = ({ onRefresh, analyzedQuote }) => {
-  const [isFavorite, setIsFavorite] = React.useState(false);
-  
-  // Check if current quote is in favorites
-  React.useEffect(() => {
-    if (analyzedQuote) {
-      const favorites = getFavorites();
-      setIsFavorite(favorites.some(fav => fav.id === analyzedQuote.id));
-    }
-  }, [analyzedQuote]);
-  
-  const handleFavoriteToggle = () => {
+  const handleSaveFavorite = () => {
     if (!analyzedQuote) return;
     
-    if (isFavorite) {
-      removeFromFavorites(analyzedQuote.id);
-      setIsFavorite(false);
-    } else {
-      addToFavorites(analyzedQuote);
-      setIsFavorite(true);
-    }
-  };
-  
-  const handleShare = () => {
-    if (!analyzedQuote) return;
+    // Get existing favorites from localStorage
+    const existingFavorites = localStorage.getItem('favoriteQuotes');
+    const favorites = existingFavorites ? JSON.parse(existingFavorites) : [];
     
-    // Use Web Share API if available
-    if (navigator.share) {
-      navigator.share({
-        title: 'Daily Quote & Mood',
-        text: `"${analyzedQuote.text}" — ${analyzedQuote.author}`,
-        url: window.location.href
-      }).catch(err => console.error('Error sharing:', err));
+    // Add the new favorite if it doesn't already exist
+    if (!favorites.some((fav: AnalyzedQuote) => fav.quote._id === analyzedQuote.quote._id)) {
+      favorites.push(analyzedQuote);
+      localStorage.setItem('favoriteQuotes', JSON.stringify(favorites));
+      alert('Quote added to favorites!');
     } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(`"${analyzedQuote.text}" — ${analyzedQuote.author}`)
-        .then(() => alert('Quote copied to clipboard!'))
-        .catch(err => console.error('Failed to copy:', err));
+      alert('This quote is already in your favorites.');
     }
   };
-  
+
   return (
     <ControlsContainer>
-      <Button onClick={() => onRefresh()} disabled={!analyzedQuote}>
-        New Quote
-      </Button>
-      
+      <Button onClick={onRefresh}>New Quote</Button>
       <FavoriteButton 
-        onClick={handleFavoriteToggle} 
+        onClick={handleSaveFavorite}
         disabled={!analyzedQuote}
-        isFavorite={isFavorite}
       >
-        {isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+        Save as Favorite
       </FavoriteButton>
-      
-      <ShareButton onClick={handleShare} disabled={!analyzedQuote}>
-        Share Quote
-      </ShareButton>
     </ControlsContainer>
   );
 };

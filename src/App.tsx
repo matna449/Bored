@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import './App.css';
 import Layout from './components/Layout';
 import QuoteCard from './components/QuoteCard';
 import QuoteControls from './components/QuoteControls';
@@ -48,7 +49,7 @@ const App: React.FC = () => {
     error, 
     refreshQuote 
   } = useQuote();
-  
+
   return (
     <Layout>
       {loading && <LoadingMessage>Loading your daily inspiration...</LoadingMessage>}
@@ -56,14 +57,14 @@ const App: React.FC = () => {
       {error && (
         <ErrorMessage>
           {error}
-          <RetryButton onClick={() => refreshQuote(true)}>Try Again</RetryButton>
+          <RetryButton onClick={() => refreshQuote()}>Try Again</RetryButton>
         </ErrorMessage>
       )}
       
       {quote && analysis && (
         <>
           <QuoteCard quote={quote} analysis={analysis} />
-          <QuoteControls onRefresh={() => refreshQuote(true)} analyzedQuote={analyzedQuote} />
+          <QuoteControls onRefresh={() => refreshQuote()} analyzedQuote={analyzedQuote} />
         </>
       )}
     </Layout>

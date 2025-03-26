@@ -1,83 +1,100 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Quote, MoodAnalysis } from '../types';
-import { useSentimentAnalysis } from '../hooks/useSentimentAnalysis';
-import MoodIndicator from './MoodIndicator';
 
-interface QuoteCardProps {
-  quote: Quote;
-  analysis: MoodAnalysis;
+interface QuoteProps {
+  _id: string;
+  content: string;
+  author: string;
 }
 
-const Card = styled.div<{ colors: ReturnType<typeof useSentimentAnalysis>['colors'] }>`
-  padding: 2rem;
-  border-radius: 1rem;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  max-width: 600px;
+interface SentimentAnalysis {
+  score: number;
+  comparative: number;
+  positive: string[];
+  negative: string[];
+}
+
+interface QuoteCardProps {
+  quote: QuoteProps;
+  analysis: SentimentAnalysis;
+}
+
+const CardContainer = styled.div<{ mood: number }>`
+  max-width: 800px;
   width: 100%;
-  margin: 2rem auto;
-  background: linear-gradient(135deg, 
-    ${props => props.colors.primary}, 
-    ${props => props.colors.secondary}
-  );
-  color: ${props => props.colors.text};
-  transition: all 0.3s ease-in-out;
-  
-  &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
-  }
+  padding: 2rem;
+  border-radius: 10px;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background-color: ${({ mood }) => {
+    if (mood > 2) return '#e3f4e1'; // Very positive
+    if (mood > 0) return '#edf7fc'; // Positive
+    if (mood === 0) return '#f5f5f5'; // Neutral
+    if (mood > -2) return '#fdeaea'; // Negative
+    return '#fadbd8'; // Very negative
+  }};
+  transition: all 0.3s ease;
 `;
 
 const QuoteText = styled.blockquote`
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   line-height: 1.6;
-  margin-bottom: 1rem;
   font-style: italic;
-  position: relative;
-  padding: 0.5rem 1rem;
-  
-  &::before, &::after {
-    content: '"';
-    font-size: 2rem;
-    opacity: 0.6;
-  }
-  
-  &::after {
-    content: '"';
-  }
+  margin: 0 0 1.5rem;
 `;
 
-const QuoteAuthor = styled.p`
+const Author = styled.cite`
+  display: block;
+  text-align: right;
+  font-size: 1.2rem;
+  font-weight: 500;
+`;
+
+const MoodIndicator = styled.div`
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const MoodLabel = styled.span<{ mood: number }>`
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: ${({ mood }) => {
+    if (mood > 2) return '#27ae60';
+    if (mood > 0) return '#3498db';
+    if (mood === 0) return '#7f8c8d';
+    if (mood > -2) return '#e67e22';
+    return '#c0392b';
+  }};
+`;
+
+const MoodScore = styled.span`
   font-size: 1rem;
-  text-align: right;
-  font-weight: bold;
-  margin-top: 1rem;
-`;
-
-const QuoteDate = styled.p`
-  font-size: 0.8rem;
-  text-align: right;
-  opacity: 0.7;
+  color: #666;
 `;
 
 const QuoteCard: React.FC<QuoteCardProps> = ({ quote, analysis }) => {
-  const { colors } = useSentimentAnalysis(analysis);
-  
-  // Format date to be more readable
-  const formattedDate = new Date(quote.date).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-  
+  const getMoodLabel = (score: number): string => {
+    if (score > 2) return 'Very Positive';
+    if (score > 0) return 'Positive';
+    if (score === 0) return 'Neutral';
+    if (score > -2) return 'Negative';
+    return 'Very Negative';
+  };
+
   return (
-    <Card colors={colors}>
-      <MoodIndicator analysis={analysis} />
-      <QuoteText>{quote.text}</QuoteText>
-      <QuoteAuthor>— {quote.author}</QuoteAuthor>
-      <QuoteDate>From {formattedDate}</QuoteDate>
-    </Card>
+    <CardContainer mood={analysis.score}>
+      <QuoteText>{quote.content}</QuoteText>
+      <Author>— {quote.author}</Author>
+      
+      <MoodIndicator>
+        <MoodLabel mood={analysis.score}>
+          Mood: {getMoodLabel(analysis.score)}
+        </MoodLabel>
+        <MoodScore>Score: {analysis.score}</MoodScore>
+      </MoodIndicator>
+    </CardContainer>
   );
 };
 

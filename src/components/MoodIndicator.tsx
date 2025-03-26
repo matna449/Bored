@@ -1,73 +1,100 @@
 import React from 'react';
 import styled from 'styled-components';
 import { MoodAnalysis } from '../types';
-import { useSentimentAnalysis } from '../hooks/useSentimentAnalysis';
 
 interface MoodIndicatorProps {
   analysis: MoodAnalysis;
 }
 
 const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 1rem;
+  margin: 1.5rem 0;
+  width: 100%;
 `;
 
-const MoodLabel = styled.div`
-  font-size: 0.9rem;
-  font-weight: bold;
+const Label = styled.div`
+  display: flex;
+  justify-content: space-between;
   margin-bottom: 0.5rem;
+`;
+
+const MoodName = styled.span`
+  font-weight: 500;
+  font-size: 1rem;
+`;
+
+const Percentage = styled.span`
+  color: #666;
+  font-size: 0.9rem;
 `;
 
 const MeterContainer = styled.div`
-  width: 100%;
-  background-color: rgba(255, 255, 255, 0.3);
-  height: 8px;
-  border-radius: 4px;
+  height: 0.5rem;
+  background-color: #eee;
+  border-radius: 1rem;
   overflow: hidden;
-  margin-bottom: 0.5rem;
 `;
 
-const MeterFill = styled.div<{ width: number; mood: string }>`
+interface MeterFillProps {
+  width: number;
+  mood: string;
+}
+
+const MeterFill = styled.div<MeterFillProps>`
   height: 100%;
   width: ${props => props.width}%;
   background-color: ${props => {
-    if (props.mood === 'positive') return 'rgba(0, 150, 0, 0.8)';
-    if (props.mood === 'negative') return 'rgba(200, 0, 0, 0.8)';
-    return 'rgba(0, 100, 200, 0.8)';
+    switch (props.mood || 'neutral') {
+      case 'positive': return '#27ae60';
+      case 'negative': return '#e74c3c';
+      default: return '#3498db';
+    }
   }};
-  transition: width 0.5s ease-in-out;
+  border-radius: 1rem;
+  transition: width 0.5s ease-out;
 `;
 
-const KeyWords = styled.div`
+const Keywords = styled.div`
+  margin-top: 1rem;
   display: flex;
-  font-size: 0.8rem;
-  gap: 1rem;
-  opacity: 0.8;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
 `;
 
-const WordList = styled.span<{ type: 'positive' | 'negative' }>`
-  color: ${props => props.type === 'positive' ? 'darkgreen' : 'darkred'};
+const Keyword = styled.span<{ type: 'positive' | 'negative' }>`
+  background-color: ${props => props.type === 'positive' ? '#e3f4e1' : '#fadbd8'};
+  color: ${props => props.type === 'positive' ? '#27ae60' : '#c0392b'};
+  padding: 0.2rem 0.5rem;
+  border-radius: 1rem;
 `;
 
 const MoodIndicator: React.FC<MoodIndicatorProps> = ({ analysis }) => {
-  const { moodLabel, intensityPercentage, keyWords } = useSentimentAnalysis(analysis);
+  const intensityPercentage = Math.round((analysis.intensity || 0.5) * 100);
   
-  // Only show a few key words to avoid cluttering the UI
-  const limitedPositive = keyWords.positive.slice(0, 3);
-  const limitedNegative = keyWords.negative.slice(0, 3);
-  
+  // Get mood label
+  const getMoodLabel = (analysis: MoodAnalysis): string => {
+    const mood = analysis.mood || 'neutral';
+    const intensity = analysis.intensity || 0.5;
+    
+    const intensityLabel = 
+      intensity < 0.3 ? 'Slightly ' : 
+      intensity < 0.7 ? 'Moderately ' : 
+      'Very ';
+      
+    return `${intensityLabel}${mood.charAt(0).toUpperCase()}${mood.slice(1)}`;
+  };
+
   return (
     <Container>
-      <MoodLabel aria-label={`Quote mood: ${moodLabel}, intensity ${intensityPercentage}%`}>
-        {moodLabel} ({intensityPercentage}%)
-      </MoodLabel>
+      <Label>
+        <MoodName>{getMoodLabel(analysis)}</MoodName>
+        <Percentage>{intensityPercentage}%</Percentage>
+      </Label>
       
       <MeterContainer>
         <MeterFill 
           width={intensityPercentage} 
-          mood={analysis.mood}
+          mood={analysis.mood || 'neutral'}
           role="progressbar"
           aria-valuenow={intensityPercentage}
           aria-valuemin={0}
@@ -75,20 +102,15 @@ const MoodIndicator: React.FC<MoodIndicatorProps> = ({ analysis }) => {
         />
       </MeterContainer>
       
-      {(limitedPositive.length > 0 || limitedNegative.length > 0) && (
-        <KeyWords>
-          {limitedPositive.length > 0 && (
-            <div>
-              Key positive: <WordList type="positive">{limitedPositive.join(', ')}</WordList>
-            </div>
-          )}
-          
-          {limitedNegative.length > 0 && (
-            <div>
-              Key negative: <WordList type="negative">{limitedNegative.join(', ')}</WordList>
-            </div>
-          )}
-        </KeyWords>
+      {analysis.words && (
+        <Keywords>
+          {analysis.words.positive.slice(0, 3).map((word, index) => (
+            <Keyword key={`positive-${index}`} type="positive">{word}</Keyword>
+          ))}
+          {analysis.words.negative.slice(0, 3).map((word, index) => (
+            <Keyword key={`negative-${index}`} type="negative">{word}</Keyword>
+          ))}
+        </Keywords>
       )}
     </Container>
   );

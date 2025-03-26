@@ -1,102 +1,51 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { analyzeText } from '../services/sentimentService';
 import { Quote, MoodAnalysis, AnalyzedQuote } from '../types';
-import { fetchRandomQuote, fetchQuoteByCategory } from '../services/quoteService';
-import { analyzeMood } from '../services/sentimentService';
-import { getStoredQuote, storeQuote, addToHistory } from '../utils/storageUtils';
+import { getRandomQuote } from '../services/quoteService';
 
-interface UseQuoteReturn {
-  quote: Quote | null;
-  analysis: MoodAnalysis | null;
-  analyzedQuote: AnalyzedQuote | null;
-  loading: boolean;
-  error: string | null;
-  refreshQuote: (forceNew?: boolean) => Promise<void>;
-  getQuoteByCategory: (category: string) => Promise<void>;
-}
-
-export const useQuote = (): UseQuoteReturn => {
+export const useQuote = () => {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [analysis, setAnalysis] = useState<MoodAnalysis | null>(null);
+  const [analyzedQuote, setAnalyzedQuote] = useState<AnalyzedQuote | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Derived state combining quote and analysis
-  const analyzedQuote = quote && analysis ? { ...quote, analysis } : null;
-  
-  const loadQuote = async (forceNew = false) => {
+
+  const fetchQuote = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      setError(null);
+      // Use the service which handles fallbacks
+      const newQuote = await getRandomQuote();
       
-      // Check if we need a new quote (daily update or forced refresh)
-      const storedQuote = getStoredQuote();
-      const needsNewQuote = forceNew || 
-        !storedQuote || 
-        new Date(storedQuote.date).toDateString() !== new Date().toDateString();
+      // Analyze the quote text
+      const newAnalysis = analyzeText(newQuote.content);
       
-      let currentQuote;
-      if (needsNewQuote) {
-        currentQuote = await fetchRandomQuote();
-        storeQuote(currentQuote);
-      } else {
-        currentQuote = storedQuote;
-      }
-      
-      setQuote(currentQuote);
-      
-      // Analyze the quote
-      const moodAnalysis = analyzeMood(currentQuote.text);
-      setAnalysis(moodAnalysis);
-      
-      // Add to history
-      if (needsNewQuote && moodAnalysis) {
-        addToHistory({ ...currentQuote, analysis: moodAnalysis });
-      }
+      setQuote(newQuote);
+      setAnalysis(newAnalysis);
+      setAnalyzedQuote({
+        quote: newQuote,
+        analysis: newAnalysis
+      });
+      setLoading(false);
     } catch (err) {
-      setError('Failed to load quote. Please try again.');
-      console.error(err);
-    } finally {
+      console.error('Error in useQuote hook:', err);
+      setError('Failed to fetch a quote. Please try again.');
       setLoading(false);
     }
-  };
-  
-  const getQuoteByCategory = async (category: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const currentQuote = await fetchQuoteByCategory(category);
-      setQuote(currentQuote);
-      
-      // Analyze the quote
-      const moodAnalysis = analyzeMood(currentQuote.text);
-      setAnalysis(moodAnalysis);
-      
-      // Store the quote and add to history
-      storeQuote(currentQuote);
-      if (moodAnalysis) {
-        addToHistory({ ...currentQuote, analysis: moodAnalysis });
-      }
-    } catch (err) {
-      setError(`Failed to load a ${category} quote. Please try again.`);
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Load quote on initial mount
-  useEffect(() => {
-    loadQuote();
   }, []);
-  
+
+  // Fetch quote on initial load
+  useEffect(() => {
+    fetchQuote();
+  }, [fetchQuote]);
+
   return {
     quote,
     analysis,
     analyzedQuote,
     loading,
     error,
-    refreshQuote: loadQuote,
-    getQuoteByCategory
+    refreshQuote: fetchQuote
   };
 };

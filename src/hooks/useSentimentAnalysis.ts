@@ -1,9 +1,13 @@
 import { useMemo } from 'react';
-import { MoodAnalysis, MoodColors } from '../types';
+import { MoodAnalysis } from '../types';
 import { getMoodColors } from '../utils/colorUtils';
 
 interface UseSentimentAnalysisReturn {
-  colors: MoodColors;
+  colors: {
+    primary: string;
+    secondary: string;
+    text: string;
+  };
   moodLabel: string;
   intensityPercentage: number;
   keyWords: {
@@ -12,15 +16,16 @@ interface UseSentimentAnalysisReturn {
   };
 }
 
-export const useSentimentAnalysis = (
-  analysis: MoodAnalysis | null
-): UseSentimentAnalysisReturn => {
-  // Calculate colors based on mood analysis
+export const useSentimentAnalysis = (analysis: MoodAnalysis | null): UseSentimentAnalysisReturn => {
+  // Generate colors based on the mood analysis
   const colors = useMemo(() => {
     if (!analysis) {
       // Default neutral colors if no analysis is available
       return getMoodColors({
         score: 0,
+        comparative: 0,
+        positive: [],
+        negative: [],
         mood: 'neutral',
         intensity: 0.5,
         words: { positive: [], negative: [] }
@@ -29,28 +34,31 @@ export const useSentimentAnalysis = (
     return getMoodColors(analysis);
   }, [analysis]);
   
-  // Generate a human-readable mood label
+  // Create a descriptive mood label
   const moodLabel = useMemo(() => {
-    if (!analysis) return 'Neutral';
+    if (!analysis || !analysis.mood) {
+      return 'Neutral';
+    }
     
     // Map mood and intensity to a more descriptive label
-    const intensityModifier = analysis.intensity < 0.3 
+    const intensityModifier = (analysis.intensity || 0) < 0.3 
       ? 'Slightly ' 
-      : analysis.intensity < 0.7 
+      : (analysis.intensity || 0) < 0.7 
         ? 'Moderately ' 
         : 'Very ';
     
-    return `${intensityModifier}${analysis.mood.charAt(0).toUpperCase()}${analysis.mood.slice(1)}`;
+    const mood = analysis.mood || 'neutral';
+    return `${intensityModifier}${mood.charAt(0).toUpperCase()}${mood.slice(1)}`;
   }, [analysis]);
   
   // Convert intensity to percentage for display
   const intensityPercentage = useMemo(() => {
-    return analysis ? Math.round(analysis.intensity * 100) : 50;
+    return analysis ? Math.round((analysis.intensity || 0.5) * 100) : 50;
   }, [analysis]);
   
   // Extract key words that influenced the sentiment
   const keyWords = useMemo(() => {
-    if (!analysis) return { positive: [], negative: [] };
+    if (!analysis || !analysis.words) return { positive: [], negative: [] };
     return analysis.words;
   }, [analysis]);
   

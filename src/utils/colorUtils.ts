@@ -2,34 +2,37 @@ import { MoodAnalysis, MoodColors } from '../types';
 
 /**
  * Generates a color scheme based on the mood analysis
- * @param analysis The mood analysis to generate colors from
- * @returns Object with primary, secondary, and text colors
+ * @param analysis Mood analysis data
+ * @returns Color scheme object
  */
 export const getMoodColors = (analysis: MoodAnalysis): MoodColors => {
-  // Base colors for different moods with HSL values for easier manipulation
-  const moodBaseColors = {
-    positive: { h: 120, s: 60, l: 50 }, // Green hue for positive
-    neutral: { h: 200, s: 30, l: 50 },  // Blue hue for neutral
-    negative: { h: 0, s: 60, l: 50 },   // Red hue for negative
+  // HSL color bases for different moods
+  const moodBaseColors: Record<string, { h: number, s: number, l: number }> = {
+    positive: { h: 120, s: 40, l: 80 }, // Green hue
+    neutral: { h: 210, s: 10, l: 85 },  // Slight blue hue
+    negative: { h: 0, s: 60, l: 80 }    // Red hue
   };
   
-  const baseColor = moodBaseColors[analysis.mood];
+  const mood = analysis.mood || 'neutral';
+  const baseColor = moodBaseColors[mood];
   
   // Adjust lightness based on intensity (more intense = more vibrant)
-  const intensityAdjustment = analysis.intensity * 20;
+  const intensityAdjustment = (analysis.intensity || 0.5) * 20;
   
   // Create a color scheme with appropriate contrast
   return {
-    // Primary background color
-    primary: `hsl(${baseColor.h}, ${baseColor.s}%, ${baseColor.l}%)`,
+    // Base background color
+    primary: `hsl(${baseColor.h}, ${baseColor.s}%, ${
+      baseColor.l - intensityAdjustment
+    }%)`,
     
     // Secondary gradient color (shift hue slightly for visual interest)
     secondary: `hsl(${baseColor.h + 20}, ${baseColor.s}%, ${
-      baseColor.l + (analysis.mood === 'positive' ? 10 : -10)
+      baseColor.l + (mood === 'positive' ? 10 : -10)
     }%)`,
     
     // Ensure text has good contrast with background
-    text: analysis.mood === 'negative' 
+    text: mood === 'negative' 
       ? `hsl(0, 0%, 95%)` // Light text for dark backgrounds
       : `hsl(0, 0%, 15%)`, // Dark text for light backgrounds
   };

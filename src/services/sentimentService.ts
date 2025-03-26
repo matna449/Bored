@@ -4,13 +4,19 @@ import { MoodAnalysis } from '../types';
 // Initialize the sentiment analyzer
 const sentiment = new Sentiment();
 
+export interface SentimentResult {
+  score: number;
+  comparative: number;
+  positive: string[];
+  negative: string[];
+}
+
 /**
- * Analyzes the mood/sentiment of a given text
- * @param text Text to analyze
- * @returns MoodAnalysis object with sentiment data
+ * Analyzes text to determine its sentiment/mood
+ * @param text The text to analyze
+ * @returns Sentiment analysis result
  */
-export const analyzeMood = (text: string): MoodAnalysis => {
-  // Get raw sentiment analysis
+export const analyzeText = (text: string): MoodAnalysis => {
   const analysis = sentiment.analyze(text);
   
   // Normalize score to a range of -1 to 1
@@ -26,7 +32,10 @@ export const analyzeMood = (text: string): MoodAnalysis => {
   const intensity = Math.min(Math.abs(normalizedScore * 2), 1);
   
   return {
-    score: normalizedScore,
+    score: analysis.score,
+    comparative: analysis.comparative,
+    positive: analysis.positive,
+    negative: analysis.negative,
     mood,
     intensity,
     words: {
@@ -34,4 +43,17 @@ export const analyzeMood = (text: string): MoodAnalysis => {
       negative: analysis.negative
     }
   };
+};
+
+/**
+ * Get a mood label based on sentiment score
+ * @param score The sentiment score
+ * @returns A descriptive mood label
+ */
+export const getMoodLabel = (score: number): string => {
+  if (score > 2) return 'Very Positive';
+  if (score > 0) return 'Positive';
+  if (score === 0) return 'Neutral';
+  if (score > -2) return 'Negative';
+  return 'Very Negative';
 };

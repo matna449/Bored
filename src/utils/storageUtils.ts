@@ -2,8 +2,8 @@ import { Quote, AnalyzedQuote } from '../types';
 
 // Storage keys
 const CURRENT_QUOTE_KEY = 'bored_current_quote';
-const FAVORITE_QUOTES_KEY = 'bored_favorite_quotes';
-const QUOTE_HISTORY_KEY = 'bored_quote_history';
+const FAVORITE_QUOTES_KEY = 'favoriteQuotes';
+const QUOTE_HISTORY_KEY = 'quoteHistory';
 
 /**
  * Stores the current quote in localStorage
@@ -32,14 +32,54 @@ export const getStoredQuote = (): Quote | null => {
 };
 
 /**
+ * Gets all favorite quotes from local storage
+ * @returns Array of favorite quotes
+ */
+export const getFavorites = (): AnalyzedQuote[] => {
+  try {
+    const favoritesData = localStorage.getItem(FAVORITE_QUOTES_KEY);
+    return favoritesData ? JSON.parse(favoritesData) : [];
+  } catch (error) {
+    console.error('Failed to get favorites:', error);
+    return [];
+  }
+};
+
+/**
+ * Gets all quote history from local storage
+ * @returns Array of viewed quotes
+ */
+export const getQuoteHistory = (): AnalyzedQuote[] => {
+  try {
+    const historyData = localStorage.getItem(QUOTE_HISTORY_KEY);
+    return historyData ? JSON.parse(historyData) : [];
+  } catch (error) {
+    console.error('Failed to get quote history:', error);
+    return [];
+  }
+};
+
+/**
  * Adds a quote to favorites
- * @param quote The quote to add to favorites
+ * @param quote Quote to add to favorites
  */
 export const addToFavorites = (quote: AnalyzedQuote): void => {
   try {
     const favorites = getFavorites();
+    
+    // Add ID if not present
+    const quoteId = quote.id || quote.quote._id;
+    
     // Check if quote already exists in favorites
-    if (!favorites.some(fav => fav.id === quote.id)) {
+    if (!favorites.some(fav => {
+      const favId = fav.id || (fav.quote && fav.quote._id);
+      return favId === quoteId;
+    })) {
+      // Ensure quote has an id field for compatibility
+      if (!quote.id) {
+        quote.id = quote.quote._id;
+      }
+      
       favorites.push(quote);
       localStorage.setItem(FAVORITE_QUOTES_KEY, JSON.stringify(favorites));
     }
@@ -54,7 +94,10 @@ export const addToFavorites = (quote: AnalyzedQuote): void => {
  */
 export const removeFromFavorites = (quoteId: string): void => {
   try {
-    const favorites = getFavorites().filter(quote => quote.id !== quoteId);
+    const favorites = getFavorites().filter(quote => {
+      const id = quote.id || (quote.quote && quote.quote._id);
+      return id !== quoteId;
+    });
     localStorage.setItem(FAVORITE_QUOTES_KEY, JSON.stringify(favorites));
   } catch (error) {
     console.error('Failed to remove quote from favorites:', error);
@@ -62,31 +105,28 @@ export const removeFromFavorites = (quoteId: string): void => {
 };
 
 /**
- * Gets all favorite quotes
- * @returns Array of favorite quotes
- */
-export const getFavorites = (): AnalyzedQuote[] => {
-  try {
-    const favorites = localStorage.getItem(FAVORITE_QUOTES_KEY);
-    return favorites ? JSON.parse(favorites) : [];
-  } catch (error) {
-    console.error('Failed to retrieve favorites:', error);
-    return [];
-  }
-};
-
-/**
  * Adds a quote to history
- * @param quote The quote to add to history
+ * @param quote Quote to add to history
+ * @param maxHistorySize Maximum number of quotes to keep in history
  */
-export const addToHistory = (quote: AnalyzedQuote): void => {
+export const addToHistory = (quote: AnalyzedQuote, maxHistorySize = 50): void => {
   try {
-    const history = getHistory();
-    // Add to beginning of array (most recent first)
-    history.unshift({ ...quote, viewed: new Date().toISOString() });
-    // Limit history to 50 items
-    const limitedHistory = history.slice(0, 50);
-    localStorage.setItem(QUOTE_HISTORY_KEY, JSON.stringify(limitedHistory));
+    let history = getQuoteHistory();
+    
+    // Ensure quote has an id field for compatibility
+    if (!quote.id) {
+      quote.id = quote.quote._id;
+    }
+    
+    // Add to front of history (most recent first)
+    history.unshift(quote);
+    
+    // Trim history to max size
+    if (history.length > maxHistorySize) {
+      history = history.slice(0, maxHistorySize);
+    }
+    
+    localStorage.setItem(QUOTE_HISTORY_KEY, JSON.stringify(history));
   } catch (error) {
     console.error('Failed to add quote to history:', error);
   }

@@ -2,37 +2,43 @@
  * Represents a quote with its metadata
  */
 export interface Quote {
-  id: string;         // Unique identifier for the quote
-  text: string;       // The quote content
-  author: string;     // The quote author
-  date: string;       // ISO string of when the quote was fetched
+  _id: string;         // Unique identifier for the quote
+  content: string;     // The quote content
+  author: string;      // The quote author
 }
 
 /**
  * Represents the mood analysis of a quote
  */
-export type MoodAnalysis = {
-  score: number;      // Raw sentiment score, typically between -1 and 1
-  mood: 'positive' | 'negative' | 'neutral';  // Categorical classification
-  intensity: number;  // Normalized intensity between 0-1
-  words: {            // Words that contributed to the sentiment
+export interface MoodAnalysis {
+  score: number;       // Raw sentiment score
+  comparative: number; // Comparative sentiment score
+  positive: string[];  // Words that contributed positively to the sentiment
+  negative: string[];  // Words that contributed negatively to the sentiment
+  
+  // Additional properties used by the application
+  mood?: 'positive' | 'negative' | 'neutral';  // The categorized mood
+  intensity?: number;                         // Intensity of the mood (0-1)
+  words?: {                                   // Key words that influenced the sentiment
     positive: string[];
     negative: string[];
-  }
-};
-
-/**
- * Color scheme generated based on mood
- */
-export interface MoodColors {
-  primary: string;    // Primary background color
-  secondary: string;  // Secondary gradient color
-  text: string;       // Text color with appropriate contrast
+  };
 }
 
 /**
  * Quote with its associated mood analysis
  */
-export interface AnalyzedQuote extends Quote {
+export interface AnalyzedQuote {
+  quote: Quote;
   analysis: MoodAnalysis;
+  id?: string;         // Added for compatibility with existing code
+}
+
+/**
+ * Color scheme for different moods
+ */
+export interface MoodColors {
+  primary: string;     // Main background color
+  secondary: string;   // Secondary/accent color
+  text: string;        // Text color with appropriate contrast
 }
