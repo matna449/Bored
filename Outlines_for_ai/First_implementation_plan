@@ -1,0 +1,268 @@
+Core Functionality Implementation
+Let's break down the key parts of the implementation:
+1. The Quote Service
+typescriptCopy// services/quoteService.ts
+import axios from 'axios';
+import { Quote } from '../types';
+
+export const fetchRandomQuote = async (): Promise<Quote> => {
+  const response = await axios.get('https://api.quotable.io/random');
+  return {
+    id: response.data._id,
+    text: response.data.content,
+    author: response.data.author,
+    date: new Date().toISOString(),
+  };
+};
+2. Sentiment Analysis Service
+typescriptCopy// services/sentimentService.ts
+import Sentiment from 'sentiment';
+import { MoodAnalysis } from '../types';
+
+const sentiment = new Sentiment();
+
+export const analyzeMood = (text: string): MoodAnalysis => {
+  const analysis = sentiment.analyze(text);
+  
+  // Calculate mood on a scale from -1 (negative) to 1 (positive)
+  const normalizedScore = analysis.comparative;
+  
+  // Determine mood category
+  let mood: 'positive' | 'negative' | 'neutral';
+  if (normalizedScore > 0.2) mood = 'positive';
+  else if (normalizedScore < -0.2) mood = 'negative';
+  else mood = 'neutral';
+  
+  // Determine intensity (0 to 1)
+  const intensity = Math.min(Math.abs(normalizedScore * 2), 1);
+  
+  return {
+    score: normalizedScore,
+    mood,
+    intensity,
+    words: {
+      positive: analysis.positive,
+      negative: analysis.negative
+    }
+  };
+};
+3. Color Utility
+typescriptCopy// utils/colorUtils.ts
+import { MoodAnalysis } from '../types';
+
+export const getMoodColors = (analysis: MoodAnalysis): {
+  primary: string;
+  secondary: string;
+  text: string;
+} => {
+  // Base colors for different moods
+  const moodBaseColors = {
+    positive: { h: 120, s: 60, l: 50 }, // Green hue
+    neutral: { h: 200, s: 30, l: 50 },  // Blue hue
+    negative: { h: 0, s: 60, l: 50 },   // Red hue
+  };
+  
+  const baseColor = moodBaseColors[analysis.mood];
+  
+  // Adjust intensity based on the analysis
+  const intensity = 40 + (analysis.intensity * 40); // Range from 40-80%
+  
+  return {
+    // Primary background color
+    primary: `hsl(${baseColor.h}, ${baseColor.s}%, ${baseColor.l}%)`,
+    
+    // Secondary gradient color (shift hue slightly)
+    secondary: `hsl(${baseColor.h + 20}, ${baseColor.s}%, ${
+      baseColor.l + (analysis.mood === 'positive' ? 10 : -10)
+    }%)`,
+    
+    // Text color (darker for positive, lighter for negative)
+    text: analysis.mood === 'negative' 
+      ? `hsl(0, 0%, 95%)` 
+      : `hsl(0, 0%, 10%)`,
+  };
+};
+4. Custom Hook for Quote Management
+typescriptCopy// hooks/useQuote.ts
+import { useState, useEffect } from 'react';
+import { Quote, MoodAnalysis } from '../types';
+import { fetchRandomQuote } from '../services/quoteService';
+import { analyzeMood } from '../services/sentimentService';
+import { getStoredQuote, storeQuote } from '../utils/storageUtils';
+
+export const useQuote = () => {
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [analysis, setAnalysis] = useState<MoodAnalysis | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const loadQuote = async (forceNew = false) => {
+    try {
+      setLoading(true);
+      
+      // Check if we need a new quote (daily update or forced refresh)
+      const storedQuote = getStoredQuote();
+      const needsNewQuote = forceNew || 
+        !storedQuote || 
+        new Date(storedQuote.date).toDateString() !== new Date().toDateString();
+      
+      let currentQuote;
+      if (needsNewQuote) {
+        currentQuote = await fetchRandomQuote();
+        storeQuote(currentQuote);
+      } else {
+        currentQuote = storedQuote;
+      }
+      
+      setQuote(currentQuote);
+      
+      // Analyze the quote
+      const moodAnalysis = analyzeMood(currentQuote.text);
+      setAnalysis(moodAnalysis);
+      
+      setError(null);
+    } catch (err) {
+      setError('Failed to load quote. Please try again.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Load quote on initial mount
+  useEffect(() => {
+    loadQuote();
+  }, []);
+  
+  return {
+    quote,
+    analysis,
+    loading,
+    error,
+    refreshQuote: () => loadQuote(true)
+  };
+};
+5. Main Quote Card Component
+typescriptCopy// components/QuoteCard.tsx
+import React from 'react';
+import styled from 'styled-components';
+import { Quote, MoodAnalysis } from '../types';
+import { getMoodColors } from '../utils/colorUtils';
+import MoodIndicator from './MoodIndicator';
+
+interface QuoteCardProps {
+  quote: Quote;
+  analysis: MoodAnalysis;
+}
+
+const Card = styled.div<{ colors: ReturnType<typeof getMoodColors> }>`
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+  margin: 2rem auto;
+  background: linear-gradient(135deg, 
+    ${props => props.colors.primary}, 
+    ${props => props.colors.secondary}
+  );
+  color: ${props => props.colors.text};
+  transition: all 0.3s ease-in-out;
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+  }
+`;
+
+const QuoteText = styled.blockquote`
+  font-size: 1.5rem;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  font-style: italic;
+`;
+
+const QuoteAuthor = styled.p`
+  font-size: 1rem;
+  text-align: right;
+  font-weight: bold;
+`;
+
+const QuoteCard: React.FC<QuoteCardProps> = ({ quote, analysis }) => {
+  const colors = getMoodColors(analysis);
+  
+  return (
+    <Card colors={colors}>
+      <MoodIndicator analysis={analysis} />
+      <QuoteText>{quote.text}</QuoteText>
+      <QuoteAuthor>— {quote.author}</QuoteAuthor>
+    </Card>
+  );
+};
+
+export default QuoteCard;
+6. Main App Component
+typescriptCopy// App.tsx
+import React from 'react';
+import styled from 'styled-components';
+import QuoteCard from './components/QuoteCard';
+import QuoteControls from './components/QuoteControls';
+import { useQuote } from './hooks/useQuote';
+
+const AppContainer = styled.div`
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  background-color: #f8f9fa;
+`;
+
+const Heading = styled.h1`
+  margin-bottom: 2rem;
+  color: #343a40;
+  text-align: center;
+`;
+
+const LoadingMessage = styled.p`
+  font-size: 1.2rem;
+  color: #6c757d;
+`;
+
+const ErrorMessage = styled.p`
+  font-size: 1.2rem;
+  color: #dc3545;
+  text-align: center;
+  max-width: 600px;
+`;
+
+const App: React.FC = () => {
+  const { quote, analysis, loading, error, refreshQuote } = useQuote();
+  
+  return (
+    <AppContainer>
+      <Heading>Daily Quote & Mood</Heading>
+      
+      {loading && <LoadingMessage>Loading your daily inspiration...</LoadingMessage>}
+      
+      {error && <ErrorMessage>{error}</ErrorMessage>}
+      
+      {quote && analysis && (
+        <>
+          <QuoteCard quote={quote} analysis={analysis} />
+          <QuoteControls onRefresh={refreshQuote} quote={quote} />
+        </>
+      )}
+    </AppContainer>
+  );
+};
+
+export default App;
+Additional Features to Consider
+
+Favorites Collection: Add functionality to save favorite quotes to local storage.
+Quote Categories: Allow filtering quotes by category (motivation, wisdom, etc.).
+Theme Switching: Add light/dark theme support.
+Social Sharing: Implement buttons to share quotes on social platforms.
+Quote History: Track and display previously shown quotes.
+Enhanced Visualization: Create more complex visualizations based on mood (like animated particles or patterns).

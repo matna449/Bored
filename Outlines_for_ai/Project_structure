@@ -1,0 +1,19 @@
+src/
+├── components/
+│   ├── QuoteCard.tsx
+│   ├── MoodIndicator.tsx
+│   ├── QuoteControls.tsx
+│   └── Layout.tsx
+├── hooks/
+│   ├── useQuote.ts
+│   └── useSentimentAnalysis.ts
+├── services/
+│   ├── quoteService.ts
+│   └── sentimentService.ts
+├── types/
+│   └── index.ts
+├── utils/
+│   ├── colorUtils.ts
+│   └── storageUtils.ts
+├── App.tsx
+└── index.tsx
